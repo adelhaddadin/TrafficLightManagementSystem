@@ -1,0 +1,26 @@
+original configuration reward=
+
+Final/Best Normalized Negative Reward (Original Config): -175.25
+______________________________________________
+
+prioritized replay reward with repick=
+
+Best Normalized Negative Reward: -152.48
+2024-12-29 09:52:38,311 - __main__ - INFO - [PR] Episode 338/400, Reward=-152480568.00 (Norm=-152.48), Epsilon=0.1837
+______________________________________________
+
+prioritized replay no immediate repick reward=
+
+Best Normalized Negative Reward: -188.62
+INFO:__main__:[PR] Episode 198/400, Reward=-188619600.00 (Norm=-188.62), Epsilon=0.3707
+
+Best Normalized Negative Reward after resumed training: -170.63
+INFO:__main__:[RESUME] Episode 39/100, Reward=-170625604.00 (Norm=-170.63), Epsilon=0.4112
+
+
+
+____________________________________________
+testing no repick = 
+
+-2296559.32 (norm = -2.29)
+

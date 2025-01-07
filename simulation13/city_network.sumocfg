@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Input files: network and routes -->
+    <input>
+        <net-file value="city_network.net.xml"/>
+        <route-files value="bashiti_routes_removed.rou.xml"/>
+        <!-- Add detector configurations if they exist -->
+        <additional-files value="tls_e3_detectors.add.xml, tls_e2_detectors.add.xml, tls_e1_detectors.add.xml"/>
+    </input>
+
+    <!-- Simulation time -->
+    <time>
+        <begin value="0"/>               <!-- Start time in seconds -->
+        <end value="20000"/>             <!-- 68400 : End time (24 hours in seconds) -->
+    </time>
+
+    <!-- Output settings -->
+    <output>
+        <!-- Summary of the entire simulation -->
+        <summary-output value="city_summary.xml"/>
+
+        <!-- Vehicle position and speed data at each timestep (floating car data) -->
+        <fcd-output value="output.fcd.xml"/>
+
+        <!-- Trip information: each vehicle's route, travel time, waiting time -->
+        <tripinfo-output value="output.tripinfo.xml"/>
+
+        <!-- Edge data: includes traffic density, occupancy, and speed per edge -->
+        <edgedata-output value="output.edgeData.xml"/>
+
+    </output>
+
+    <!-- Timed events to capture traffic light data -->
+    <timed-events>
+        <!-- Save traffic light switching times -->
+        <timedEvent type="SaveTLSSwitchTimes" source="tls_id" dest="output_tls_switch_times.xml"/>
+    </timed-events>
+
+    <!-- Report settings (for additional details on performance) -->
+    <report>
+        <verbose value="true"/> <!-- Enables detailed log output in the console -->
+        <no-warnings value="true"/> <!-- Hides warnings in output -->
+    </report>
+</configuration>
