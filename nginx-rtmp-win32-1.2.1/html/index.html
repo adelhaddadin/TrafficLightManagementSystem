@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SUMO Traffic Simulator Dashboard</title>
+
+  <!-- HLS.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.4.12/hls.min.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    * {
+      margin: 0; padding: 0; box-sizing: border-box; 
+    }
+    
+    body {
+      background-image: url("Traffic_image.jpg");
+      background-size: cover;
+      background-attachment: fixed;
+      background-position: center top;
+      background-repeat: no-repeat;
+      line-height: 1.5;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background-color: #f5f5f5; line-height: 1.5;
+    }
+    .container {
+      max-width: 1200px; margin: 0 auto; padding: 20px;
+    }
+    .flex-container {
+      display: flex; gap: 20px; flex-wrap: wrap;
+    }
+    .card {
+      background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 20px; margin-top: 20px; padding: 16px; flex: 1; min-width: 300px;
+    }
+    .card-title {
+      font-size: 1.25rem; font-weight: 600; color: #333; margin-bottom: 16px;
+    }
+    .video-container {
+      aspect-ratio: 16/9; width: 100%; max-width: 1000px; border-radius: 4px; overflow: hidden;
+      position: relative; background: #000;
+    }
+    .video-container::before {
+      content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: #000; z-index: 1; opacity: 0; transition: opacity 0.3s;
+    }
+    .video-container.buffering::before {
+      opacity: 0.6; /* show black overlay while buffering */
+    }
+    video {
+      width: 100%; height: 100%; object-fit: cover; pointer-events: none; position: relative; z-index: 0;
+    }
+    .notifications {
+      height: 300px;color: #333; overflow-y: auto;
+    }
+    .notification {
+      padding: 12px; background: #f8f9fa; border-left: 4px solid #4299e1; margin-bottom: 8px;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .notification.error {
+      border-left-color: #e53e3e; /* Red color for errors */
+      background: #fdecea;
+    }
+    .notification .notification-content {
+      font-size: 0.9rem;
+    }
+    .notification .emergency {
+      margin-top: 8px; font-size: 0.9rem; background: #fce8e8; border-left: 4px solid #e53e3e; padding: 8px;
+      border-radius: 4px;
+    }
+    .grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;
+    }
+    .chart-container {
+      height: 300px; width: 100%;
+    }
+    @media (max-width: 768px) {
+      .flex-container {
+        flex-direction: column;
+      }
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Flex Container for Video and Notifications -->
+    <div class="flex-container">
+      <!-- Video Section -->
+      <div class="live-card" style="flex: 3;">
+
+        <h2 class="card-title" style="color: rgb(248, 248, 248);">Live Simulation</h2>
+
+        <div id="videoContainer" class="video-container">
+          <video id="video" autoplay muted playsinline width="640" height="360"></video>
+        </div>
+      </div>
+
+      <!-- Notifications Section -->
+      <div class="card notifications-card" style="flex: 0 0 300px; max-width: 300px;">
+        <h2 class="card-title">Notifications</h2>
+        <div id="notifications" class="notifications"></div>
+      </div>
+    </div>
+
+    <!-- Charts Grid -->
+    <div class="grid">
+      <!-- Vehicle Count Chart -->
+      <div class="card">
+        <h2 class="card-title" style="color: rgb(0, 0, 0);">Real-time Vehicle Count</h2>
+        <canvas id="vehicleChart"></canvas>
+      </div>
+
+      <!-- CO2 Emissions Chart -->
+      <div class="card">
+        <h2 class="card-title" style ="color: rgb(0, 0, 0);">Real-time CO2 Emissions</h2>
+        <canvas id="co2Chart"></canvas>
+      </div>
+
+      <!-- NOx Emissions Chart -->
+      <div class="card">
+        <h2 class="card-title" style="color: rgb(0, 0, 0);">Real-time NOx Emissions</h2>
+        <canvas id="noxChart"></canvas>
+      </div>
+
+      <!-- PM10 Emissions Chart -->
+      <div class="card">
+        <h2 class="card-title" style="color: rgb(0, 0, 0);">Real-time PM10 Emissions</h2>
+        <canvas id="pmxChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+document.addEventListener('DOMContentLoaded', () => {
+    console.log("DOM loaded. Initializing everything...");
+
+    // ---------------------------
+    // 1) Video buffering logic
+    // ---------------------------
+    const video = document.getElementById('video');
+    const videoContainer = document.getElementById('videoContainer');
+    let lastFrame = null;
+
+    console.log("Setting up video buffering event listeners...");
+    video.addEventListener('timeupdate', function() {
+        // This fires often while video is playing
+        console.log("[video] timeupdate event triggered.");
+        if (!video.paused) {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0);
+                lastFrame = canvas;
+                // We won't console.log the entire frame or canvas
+            } catch (e) {
+                console.error('[video] Error capturing frame:', e);
+            }
+        }
+    });
+
+    video.addEventListener('waiting', function() {
+        console.log("[video] waiting event: video is buffering...");
+        if (lastFrame) {
+            videoContainer.classList.add('buffering');
+        }
+    });
+
+    video.addEventListener('playing', function() {
+        console.log("[video] playing event: video resumed playback.");
+        videoContainer.classList.remove('buffering');
+    });
+
+    // ---------------------------
+    // 2) HLS video playback logic
+    // ---------------------------
+    console.log("Setting up HLS playback logic...");
+    const videoSrc = 'http://localhost:8080/hls/streamkey.m3u8';
+    if (Hls.isSupported()) {
+        console.log("Hls.js is supported. Creating Hls instance...");
+        const hls = new Hls({
+            maxBufferLength: 30,
+            maxMaxBufferLength: 60,
+            maxBufferSize: 60 * 1000 * 1000,
+            highBufferWatchdogPeriod: 1,
+            lowBufferWatchdogPeriod: 0.5
+        });
+
+        hls.loadSource(videoSrc);
+        hls.attachMedia(video);
+
+        hls.on(Hls.Events.MANIFEST_PARSED, function() {
+            console.log("[HLS] MANIFEST_PARSED event: Attempting to auto-play the video.");
+            video.play().catch(function(error) {
+                console.log("[HLS] Play failed:", error);
+            });
+        });
+
+        hls.on(Hls.Events.ERROR, function(event, data) {
+            console.log("[HLS] ERROR event:", data);
+            if (data.fatal) {
+                switch (data.type) {
+                    case Hls.ErrorTypes.NETWORK_ERROR:
+                        console.error("[HLS] Network error encountered, trying to recover...");
+                        hls.startLoad();
+                        break;
+                    case Hls.ErrorTypes.MEDIA_ERROR:
+                        console.error("[HLS] Media error encountered, trying to recover...");
+                        hls.recoverMediaError();
+                        break;
+                    default:
+                        console.error("[HLS] Unrecoverable error encountered, destroying Hls instance.");
+                        hls.destroy();
+                        break;
+                }
+            }
+        });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        // Safari supports HLS natively
+        console.log("HLS supported natively by Safari. Using direct video.src...");
+        video.src = videoSrc;
+        video.addEventListener('loadedmetadata', function() {
+            console.log("[video] loadedmetadata event: Attempting to play...");
+            video.play().catch(function(error) {
+                console.log("[video] Play failed:", error);
+            });
+        });
+    } else {
+        console.warn("Neither Hls.js nor native HLS is supported. Video might not play.");
+    }
+
+    // ---------------------------
+    // 3) Chart.js setup with Dual Datasets
+    // ---------------------------
+    console.log("Initializing Chart.js charts with dual datasets...");
+    
+    // Utility function to create chart configurations
+    function createChartConfig(label1, label2, color1, color2, yLabel) {
+        return {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: label1,
+                        data: [],
+                        borderColor: color1,
+                        backgroundColor: color1,
+                        borderWidth: 2,
+                        fill: false
+                    },
+                    {
+                        label: label2,
+                        data: [],
+                        borderColor: color2,
+                        backgroundColor: color2,
+                        borderWidth: 2,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Simulation Time (s)' },
+                        ticks: { autoSkip: true, maxTicksLimit: 10 }
+                    },
+                    y: {
+                        title: { display: true, text: yLabel },
+                        beginAtZero: true
+                    }
+                }
+            }
+        };
+    }
+
+    // Create charts with dual datasets
+    const vehicleCtx = document.getElementById('vehicleChart').getContext('2d');
+    const vehicleChart = new Chart(vehicleCtx, createChartConfig(
+        'Dynamic DRL Configuration',
+        'Static Configuration',
+        '#8884d8',
+        '#82ca9d',
+        'Vehicle Count'
+    ));
+
+    const co2Ctx = document.getElementById('co2Chart').getContext('2d');
+    const co2Chart = new Chart(co2Ctx, createChartConfig(
+        'Dynamic DRL Configuration CO2',
+        'Static Configuration CO2',
+        '#ff6384',
+        '#36a2eb',
+        'CO2 (g)'
+    ));
+
+    const noxCtx = document.getElementById('noxChart').getContext('2d');
+    const noxChart = new Chart(noxCtx, createChartConfig(
+        'Dynamic DRL Configuration NOx',
+        'Static Configuration NOx',
+        '#ff9f40',
+        '#4bc0c0',
+        'NOx (g)'
+    ));
+
+    const pmxCtx = document.getElementById('pmxChart').getContext('2d');
+    const pmxChart = new Chart(pmxCtx, createChartConfig(
+        'Dynamic DRL Configuration PMx',
+        'Static Configuration PMx',
+        '#9966ff',
+        '#ffcd56',
+        'PMx (g)'
+    ));
+
+    // Keep references for easy updating
+    const charts = [vehicleChart, co2Chart, noxChart, pmxChart];
+    console.log("Charts initialized with dual datasets:", charts);
+
+    // ---------------------------
+    // 4) Notification center
+    // ---------------------------
+    const notifications = document.getElementById('notifications');
+    console.log("Notifications container found:", notifications);
+
+    // Utility function to format occupancy data
+    function formatOccupancy(occupancyData) {
+        return Object.keys(occupancyData)
+            .map((lane) => `${lane}=${occupancyData[lane] !== undefined ? occupancyData[lane] : 'N/A'}`)
+            .join(', ');
+    }
+
+    // Function to create notification HTML
+    function createNotification(data) {
+        const {
+            simTime,
+            sharedSim,
+            sim13,
+            occupancyData,
+            emergencyData
+        } = data;
+
+        const timeStr = new Date().toLocaleTimeString();
+
+        const occupancyFormatted = formatOccupancy(occupancyData);
+
+        // Check if there is an actual emergency
+        const hasEmergency = emergencyData.emerg_veh_id !== 0 || emergencyData.emerg_lane_id !== 0 || emergencyData.controlling_tl_id !== 0;
+
+        // Build emergency HTML if necessary
+        const emergencyHtml = hasEmergency ? `
+          <div class="emergency">
+            <strong>Emergency:</strong><br>
+            Vehicle ID: ${emergencyData.emerg_veh_id}<br>
+            Lane ID: ${emergencyData.emerg_lane_id}<br>
+            Controlling TL ID: ${emergencyData.controlling_tl_id}
+          </div>` : '';
+
+        // Create notification container
+        const notif = document.createElement("div");
+        notif.className = "notification";
+
+        // Populate notification content
+        notif.innerHTML = `
+          <div class="notification-content">
+            <strong>[${timeStr}] Shared Simulation</strong><br>
+            &nbsp;&nbsp;Vehicle Count: ${sharedSim.vehicle_count}<br>
+            &nbsp;&nbsp;Avg Speed: ${(sharedSim.average_speed * 3.6).toFixed(2)} km/h<br>
+            &nbsp;&nbsp;Occupancy: ${occupancyFormatted}
+            
+            <hr style="margin: 8px 0; border-color: #eaeaea;">
+            
+            <strong>Static Configuration</strong><br>
+            &nbsp;&nbsp;Vehicle Count: ${sim13.vehicle_count}<br>
+            &nbsp;&nbsp;Avg Speed: ${(sim13.average_speed * 3.6).toFixed(2)} km/h<br>
+            
+            ${emergencyHtml}
+          </div>
+        `;
+
+        return notif;
+    }
+
+    // Function to create error notification
+    function createErrorNotification(message) {
+        const errorNotif = document.createElement("div");
+        errorNotif.className = "notification error";
+        errorNotif.innerHTML = `
+          <div class="notification-content">
+            <strong>[${new Date().toLocaleTimeString()}] Error:</strong> ${message}
+          </div>
+        `;
+        return errorNotif;
+    }
+
+    // ---------------------------
+    // 5) Data fetching & updates
+    // ---------------------------
+    //response from shared_emergency:
+    // shared_emergency = {
+    // "emerg_veh_id": 0,
+    // "emerg_lane_id": 0,
+    // "controlling_tl_id": 0
+    // }
+
+    async function fetchData() {
+        console.log("fetchData() called...");
+        try {
+            // Fetch emissions, vehicle, occupancy, and emergency data in parallel
+            console.log("Requesting data from /emissions, /vehicles, /occupancy, and /emergency endpoints...");
+            const [emissionsRes, vehiclesRes, occupancyRes, emergencyRes] = await Promise.all([
+                fetch("http://localhost:8000/emissions"),
+                fetch("http://localhost:8000/vehicles"),
+                fetch("http://localhost:8000/occupancy"),
+                fetch("http://localhost:8000/emergency")
+            ]);
+
+            console.log("Responses received. Checking statuses...");
+            console.log("emissionsRes.ok:", emissionsRes.ok, "status:", emissionsRes.status);
+            console.log("vehiclesRes.ok:", vehiclesRes.ok, "status:", vehiclesRes.status);
+            console.log("occupancyRes.ok:", occupancyRes.ok, "status:", occupancyRes.status);
+            console.log("emergencyRes.ok:", emergencyRes.ok, "status:", emergencyRes.status);
+            if (!emissionsRes.ok || !vehiclesRes.ok || !occupancyRes.ok || !emergencyRes.ok) {
+                throw new Error('One or more network responses were not OK.');
+            }
+
+            // Parse JSON
+            console.log("Parsing JSON from responses...");
+            const emissionsData = await emissionsRes.json();
+            const vehiclesData = await vehiclesRes.json();
+            const occupancyData = await occupancyRes.json();
+            const emergencyData = await emergencyRes.json();
+
+            console.log("emissionsData:", emissionsData);
+            console.log("vehiclesData:", vehiclesData);
+            console.log("occupancyData:", occupancyData);
+            console.log("emergencyData:", emergencyData);
+
+            // We assume emissionsData has a numeric 'time' field
+            const simTime = parseFloat(emissionsData.shared_sim.time); // Assuming both sims have the same time
+            console.log("Parsed simTime =", simTime);
+
+            if (isNaN(simTime)) {
+                console.warn("Skipping chart updates because simTime is NaN.");
+                return; // skip if we can't parse time
+            }
+
+            // -------------- Update CHARTS --------------
+            console.log("Updating charts with new data...");
+
+            // 1) Vehicle chart
+            vehicleChart.data.labels.push(simTime);
+            vehicleChart.data.datasets[0].data.push(vehiclesData.shared_sim.vehicle_count);
+            vehicleChart.data.datasets[1].data.push(vehiclesData.sim13.vehicle_count);
+            if (vehicleChart.data.labels.length > 20) {
+                vehicleChart.data.labels.shift();
+                vehicleChart.data.datasets[0].data.shift();
+                vehicleChart.data.datasets[1].data.shift();
+            }
+            vehicleChart.update();
+            console.log("[vehicleChart] data updated for both simulations.");
+
+            // 2) CO2 chart
+            co2Chart.data.labels.push(simTime);
+            co2Chart.data.datasets[0].data.push(emissionsData.shared_sim.co2);
+            co2Chart.data.datasets[1].data.push(emissionsData.sim13.co2);
+            if (co2Chart.data.labels.length > 20) {
+                co2Chart.data.labels.shift();
+                co2Chart.data.datasets[0].data.shift();
+                co2Chart.data.datasets[1].data.shift();
+            }
+            co2Chart.update();
+            console.log("[co2Chart] data updated for both simulations.");
+
+            // 3) NOx chart
+            noxChart.data.labels.push(simTime);
+            noxChart.data.datasets[0].data.push(emissionsData.shared_sim.nox);
+            noxChart.data.datasets[1].data.push(emissionsData.sim13.nox);
+            if (noxChart.data.labels.length > 20) {
+                noxChart.data.labels.shift();
+                noxChart.data.datasets[0].data.shift();
+                noxChart.data.datasets[1].data.shift();
+            }
+            noxChart.update();
+            console.log("[noxChart] data updated for both simulations.");
+
+            // 4) PMx chart
+            pmxChart.data.labels.push(simTime);
+            pmxChart.data.datasets[0].data.push(emissionsData.shared_sim.pmx);
+            pmxChart.data.datasets[1].data.push(emissionsData.sim13.pmx);
+            if (pmxChart.data.labels.length > 20) {
+                pmxChart.data.labels.shift();
+                pmxChart.data.datasets[0].data.shift();
+                pmxChart.data.datasets[1].data.shift();
+            }
+            pmxChart.update();
+            console.log("[pmxChart] data updated for both simulations.");
+
+            // -------------- Notifications --------------
+            console.log("Creating new notification entry...");
+            // Build notification data
+            const data = {
+                simTime,
+                sharedSim: {
+                    vehicle_count: vehiclesData.shared_sim.vehicle_count,
+                    average_speed: vehiclesData.shared_sim.average_speed
+                },
+                sim13: {
+                    vehicle_count: vehiclesData.sim13.vehicle_count,
+                    average_speed: vehiclesData.sim13.average_speed
+                },
+                occupancyData,
+                emergencyData
+            };
+
+            // Create notification element
+            const newNotification = createNotification(data);
+            notifications.insertBefore(newNotification, notifications.firstChild);
+
+            console.log("Notification added.");
+
+            // Keep only the last 5 notifications
+            if (notifications.children.length > 5) {
+                notifications.removeChild(notifications.lastChild);
+            }
+
+        } catch (error) {
+            console.error("Error fetching data:", error);
+
+            const errorNotif = createErrorNotification(error.message);
+            notifications.insertBefore(errorNotif, notifications.firstChild);
+
+            if (notifications.children.length > 5) {
+                notifications.removeChild(notifications.lastChild);
+            }
+        }
+    }
+
+    // Initial fetch
+    console.log("Performing initial fetchData() call immediately...");
+    fetchData();
+
+    // Fetch updated data every 3 seconds
+    console.log("Setting interval to fetch data every 3 seconds...");
+    setInterval(fetchData, 3000);
+});
+  </script>
+</body>
+</html>

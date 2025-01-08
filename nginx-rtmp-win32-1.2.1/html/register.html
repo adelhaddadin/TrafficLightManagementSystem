@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Dashboard</title>
+    <link rel="stylesheet" href="style.css"> <!-- Assuming style.css is in the same directory -->
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-image: url('C:/Users/Azd_A/OneDrive/Desktop/SUMO/nginx-rtmp-win32-1.2.1/html/Traffic_image.jpg'); /* Same background */
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        .register-container {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            transform: translateY(50px);
+        }
+        .register-container h1 {
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            color: #333;
+        }
+        .register-container input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        .register-container button {
+            width: 100%;
+            padding: 10px;
+            background-color: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+        .register-container button:hover {
+            background-color: #3182ce;
+        }
+        .login-link {
+            margin-top: 20px;
+            font-size: 0.9rem;
+        }
+        .login-link a {
+            color: #4299e1;
+            text-decoration: none;
+        }
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <h1>Register</h1>
+        <form id="registerForm">
+            <input type="text" id="newUsername" placeholder="Username" required>
+            <input type="password" id="newPassword" placeholder="Password" required>
+            <input type="password" id="confirmPassword" placeholder="Confirm Password" required>
+            <button type="submit">Create Account</button>
+        </form>
+        <div class="login-link">
+            <p>Already have an account? <a href="login.html">Login here</a></p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+    
+            const username = document.getElementById('newUsername').value;
+            const password = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+    
+            if (password !== confirmPassword) {
+                alert('Passwords do not match!');
+                return;
+            }
+    
+            // Check if accounts already exist
+            let users = JSON.parse(localStorage.getItem('users')) || [];
+    
+            // Check if username already exists
+            if (users.some(user => user.username === username)) {
+                alert('Username already taken. Please choose another.');
+                return;
+            }
+    
+            // Save new user
+            users.push({ username, password });
+            localStorage.setItem('users', JSON.stringify(users));
+    
+            alert('Account created successfully!');
+            window.location.href = 'login.html'; // Redirect to login page
+        });
+    </script>
+    
+</body>
+</html>

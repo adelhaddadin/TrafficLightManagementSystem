@@ -1,0 +1,14 @@
+#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-TARGETDURATION:8
+#EXT-X-MEDIA-SEQUENCE:5
+#EXTINF:8.333333,
+nginx-rtmp-win32-1.25.ts
+#EXTINF:8.333333,
+nginx-rtmp-win32-1.26.ts
+#EXTINF:8.333333,
+nginx-rtmp-win32-1.27.ts
+#EXTINF:8.333333,
+nginx-rtmp-win32-1.28.ts
+#EXTINF:8.333333,
+nginx-rtmp-win32-1.29.ts
